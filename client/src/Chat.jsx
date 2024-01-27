@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useState } from "react"
+import { useRef, useContext, useEffect, useState } from "react"
 import Avatar from "./Avatar";
 import Logo from "./Logo";
 import { UserContext } from "./UserContext";
@@ -11,6 +11,7 @@ export default function Chat() {
     const {username, id} = useContext(UserContext);
     const [newMessageText, setNewMessageText] = useState('');
     const [messages, setMessages] = useState([]);
+    const divUnderMessage = useRef();
 
     useEffect(() => {
         const ws = new WebSocket("ws://localhost:4040");
@@ -51,6 +52,14 @@ export default function Chat() {
         }]));
     }
 
+    // Auto scroll when messages array changed
+    useEffect(() => {
+        const div = divUnderMessage.current;
+        if (div) {
+            div.scrollIntoView({behavior: "smooth"});
+        }
+    }, [messages])
+
     // Delete our user from all onlinePeople
     const onlinePeopleExclOurUser = {...onlinePeople};
     delete onlinePeopleExclOurUser[id];
@@ -85,16 +94,19 @@ export default function Chat() {
                         </div>
                     )}
                     {!!selectedUserId && (
-                        <div className="overflow-y-scroll">
-                            {messageWithoutDupes.map((message, index) => (
-                                <div key={index} className={(message.sender === id ? "text-right": "text-left")}>
-                                    <div className={"text-left inline-block p-2 m-2 rounded-md text-sm " + (message.sender === id ? "bg-blue-500 text-white" : "bg-white text-gray-500")}>
-                                        sender: {message.sender} <br />
-                                        my id: {id} <br />
-                                        {message.text}
+                        <div className="relative h-full">
+                            <div className="overflow-y-scroll absolute top-0 left-0 right-0 bottom-2">
+                                {messageWithoutDupes.map((message, index) => (
+                                    <div key={index} className={(message.sender === id ? "text-right": "text-left")}>
+                                        <div className={"text-left inline-block p-2 m-2 rounded-md text-sm " + (message.sender === id ? "bg-blue-500 text-white" : "bg-white text-gray-500")}>
+                                            sender: {message.sender} <br />
+                                            my id: {id} <br />
+                                            {message.text}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))} 
+                                <div ref={divUnderMessage}></div>
+                            </div>
                         </div>
                     )}
                 </div>
