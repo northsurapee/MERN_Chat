@@ -15,10 +15,21 @@ export default function Chat() {
     const divUnderMessage = useRef();
 
     useEffect(() => {
+        connectToWs();
+    }, []);
+
+    function connectToWs() {
         const ws = new WebSocket("ws://localhost:4040");
         setWs(ws);
-        ws.addEventListener("message", handleMessage)
-    }, []);
+        ws.addEventListener("message", handleMessage);
+        // If disconnected, try to reconnect every 1 sec.
+        ws.addEventListener("close", () => {
+            setTimeout(() => {
+                console.log("Disconnected. Trying to reconnect.");
+                connectToWs();
+            }, 1000);
+        });
+    }
 
     function showOnlinePeople(peopleArray) {
         const people = {};
@@ -49,7 +60,7 @@ export default function Chat() {
             text: newMessageText, 
             sender: id,
             recipient: selectedUserId,
-            id: Date.now(),
+            _id: Date.now(),
         }]));
     }
 
@@ -63,7 +74,9 @@ export default function Chat() {
 
     useEffect(() => {
         if (selectedUserId) {
-            axios.get("/messages/" + selectedUserId)
+            axios.get("/messages/" + selectedUserId).then(res => {
+                setMessages(res.data);
+            });
         }
     }, [selectedUserId]);
 
@@ -71,7 +84,7 @@ export default function Chat() {
     const onlinePeopleExclOurUser = {...onlinePeople};
     delete onlinePeopleExclOurUser[id];
 
-    const messageWithoutDupes = uniqBy(messages, "id");
+    const messageWithoutDupes = uniqBy(messages, "_id");
 
     return (
         <div className="flex h-screen">
@@ -103,11 +116,9 @@ export default function Chat() {
                     {!!selectedUserId && (
                         <div className="relative h-full">
                             <div className="overflow-y-scroll absolute top-0 left-0 right-0 bottom-2">
-                                {messageWithoutDupes.map((message, index) => (
-                                    <div key={index} className={(message.sender === id ? "text-right": "text-left")}>
+                                {messageWithoutDupes.map((message) => (
+                                    <div key={message._id} className={(message.sender === id ? "text-right": "text-left")}>
                                         <div className={"text-left inline-block p-2 m-2 rounded-md text-sm " + (message.sender === id ? "bg-blue-500 text-white" : "bg-white text-gray-500")}>
-                                            sender: {message.sender} <br />
-                                            my id: {id} <br />
                                             {message.text}
                                         </div>
                                     </div>
