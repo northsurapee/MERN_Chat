@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-export default function Avatar({username, userId}) {
+export default function Avatar({username, userId, online}) {
     const colors = ["bg-red-200", "bg-green-200", "bg-purple-200", 
                     "bg-blue-200", "bg-yellow-200", "bg-teal-200",
                     "bg-orange-200", "bg-pink-200", "bg-gray-200"];
@@ -8,10 +8,14 @@ export default function Avatar({username, userId}) {
     const color = colors[colorIndex];
 
     return (
-        <div className={"w-8 h-8 rounded-full flex items-center justify-center " + color}>
-            <div className="opacity-60">
-                {username[0]}
-            </div>
+        <div className={"w-8 h-8 relative rounded-full flex items-center justify-center " + color}>
+            <div className="opacity-60">{username[0]}</div>
+            {online && (
+                <div className="absolute w-3 h-3 bg-green-400 bottom-0 right-0 rounded-full border border-white"></div>
+            )}
+            {!online && (
+                <div className="absolute w-3 h-3 bg-gray-300 bottom-0 right-0 rounded-full border border-white"></div>
+            )}
         </div>
     );
 }

@@ -7,7 +7,8 @@ const dotenv = require("dotenv");
 const User = require("./models/User")
 const bcrypt = require("bcryptjs");
 const ws = require("ws");
-const Message = require("./models/Message")
+const Message = require("./models/Message");
+const userModel = require("./models/User");
 
 dotenv.config();
 mongoose.connect(process.env.MONGO_URL);
@@ -53,6 +54,11 @@ app.get("/messages/:userId", async (req, res) => {
         recipient:{$in: [userId, ourUserId]},
     }).sort({createdAt: 1});
     res.json(messages);
+});
+
+app.get("/people", async (req, res) => {
+    const users = await User.find({}, {"_id":1, username: 1});
+    res.json(users);
 });
 
 app.get("/profile", (req, res) => {
