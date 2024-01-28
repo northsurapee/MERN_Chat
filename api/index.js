@@ -90,6 +90,10 @@ app.post("/login", async (req, res) => {
     }
 });
 
+app.post("/logout", async (req, res) => {
+    res.cookie('token', "").status(201).json("ok");
+});
+
 app.post("/register", async (req, res) => {
     const {username, password} = req.body;
     try {
@@ -128,20 +132,21 @@ wss.on("connection", (connection, req) => {
     }}
 
     // Killing old connection
-    connection.isAlive = true;
-    connection.timer = setInterval(() => {
+    connection.isAlive = true; // after someone connected
+    connection.timer = setInterval(() => { // check for heartbeat (ping-pong) every 5 second
         connection.ping();
-        connection.deathTimer = setTimeout(() => {
+        connection.deathTimer = setTimeout(() => { // if no pong after 1 second 
             connection.isAlive = false;
-            connection.terminate();
-            notifyAboutOnlinePeople();
+            clearInterval(connection.timer); // clear heartbeat function
+            connection.terminate(); // terminate connection (free memory from server)
+            notifyAboutOnlinePeople(); // respone new online clinets to everyone's frontend
             console.log("dead");
         }, 1000);
     }, 5000);
 
-connection.on("pong", () => {
-    clearTimeout(connection.deathTimer);
-});
+    connection.on("pong", () => {
+        clearTimeout(connection.deathTimer);
+    });
 
     // read username and id from the cookie for this connection
     const cookies = req.headers.cookie;
