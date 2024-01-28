@@ -9,6 +9,7 @@ const bcrypt = require("bcryptjs");
 const ws = require("ws");
 const Message = require("./models/Message");
 const userModel = require("./models/User");
+const fs = require("fs");
 
 dotenv.config();
 mongoose.connect(process.env.MONGO_URL);
@@ -18,6 +19,7 @@ const bcryptSalt = bcrypt.genSaltSync(10);
 const mongoURL = "mongodb+srv://northsurapee:f2a5abcd@cluster0.3pe23ge.mongodb.net/?retryWrites=true&w=majority";
 
 const app = express();
+app.use("/uploads", express.static(__dirname + "/uploads"));
 app.use(express.json())
 app.use(cookieParser());
 app.use(
@@ -168,13 +170,24 @@ wss.on("connection", (connection, req) => {
     connection.on("message", async (message) => {
         // 'message' object received in a WS is in buffer
         const messageData = JSON.parse(message.toString());
-        console.log(messageData)
-        const {recipient, text} = messageData;
-        if (recipient && text) {
+        const {recipient, text, file} = messageData;
+        let fileName = null;
+        if (file) {
+            const parts = file.name.split(".");
+            const ext = parts[parts.length - 1];
+            fileName = Date.now() + "." + ext;
+            const path = __dirname + "/uploads/" + fileName;
+            const bufferData = Buffer.from(file.data.split(",")[1], "base64");
+            fs.writeFile(path, bufferData, () => {
+                console.log("file saved: " + path);
+            });
+        }
+        if (recipient && (text || file)) {
             const messageDoc = await Message.create({
                 sender:connection.userId,
                 recipient,
                 text,
+                file: file ? fileName : null,
             });
             [...wss.clients]
                 .filter(c => c.userId === recipient)
@@ -182,6 +195,7 @@ wss.on("connection", (connection, req) => {
                     text, 
                     sender:connection.userId,
                     recipient,
+                    file: file ? fileName : null,
                     _id:messageDoc._id,
                 })));
         }
