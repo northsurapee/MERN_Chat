@@ -1,10 +1,10 @@
 /* eslint-disable react/prop-types */
 import Avatar from "./Avatar"
 
-export default function Contact({userId, selected, setSelectedUserId, username, online}) {
+export default function Contact({userId, selected, onClick, username, online}) {
   return (
     <div 
-        onClick={() => setSelectedUserId(userId)} 
+        onClick={() => onClick(userId)} 
         key={userId} 
         className={"border-b border-gray-100 flex items-center gap-2 cursor-pointer " + (selected ? "bg-blue-100" : "")}
     >

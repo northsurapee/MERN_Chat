@@ -123,7 +123,6 @@ const wss = new ws.WebSocketServer({server});
 
 
 wss.on("connection", (connection, req) => {
-
     // Notify everyone about online people (when someone connect or disconnect)
     function notifyAboutOnlinePeople() {{
         [...wss.clients].forEach(client => {

@@ -16,20 +16,31 @@ export default function Chat() {
     const divUnderMessage = useRef();
 
     useEffect(() => {
+        console.log("Reconnecting")
         connectToWs();
-    }, []);
+      }, [selectedUserId]); // To re-create listener function with latest "selectedUserId" (Because value of the state is still be the same when function is created)
 
     function connectToWs() {
-        const ws = new WebSocket("ws://localhost:4040");
+        const ws = new WebSocket('ws://localhost:4040');
         setWs(ws);
-        ws.addEventListener("message", handleMessage);
-        // If disconnected, try to reconnect every 1 sec.
-        ws.addEventListener("close", () => {
-            setTimeout(() => {
-                console.log("Disconnected. Trying to reconnect.");
-                connectToWs();
-            }, 1000);
+        ws.addEventListener('message', handleMessage);
+        ws.addEventListener('close', () => {
+          setTimeout(() => {
+            console.log('Disconnected. Trying to reconnect.');
+            connectToWs();
+          }, 1000);
         });
+      }
+
+    function handleMessage(ev) {
+        const messageData = JSON.parse(ev.data);
+        if ('online' in messageData) {
+          showOnlinePeople(messageData.online);
+        } else if ('text' in messageData) {
+          if (messageData.sender === selectedUserId) {
+            setMessages(prev => ([...prev, {...messageData}]));
+          }
+        }
     }
 
     function showOnlinePeople(peopleArray) {
@@ -38,18 +49,6 @@ export default function Chat() {
             people[userId] = username;
         });
         setOnlinePeople(people);
-    }
-
-    function handleMessage(e) {
-        const messageData = JSON.parse(e.data);
-        console.log({e, messageData});
-        if ("online" in messageData) {
-            showOnlinePeople(messageData.online);
-        } else if ("text" in messageData) {
-            if (messageData.sender === selectedUserId) {
-                setMessages((prev) => ([...prev, {...messageData}]));
-            }
-        }
     }
 
     function logout() {
@@ -146,7 +145,7 @@ export default function Chat() {
                             userId = {userId}
                             online = {true}
                             username = {onlinePeopleExclOurUser[userId]}
-                            setSelectedUserId = {() => setSelectedUserId(userId)}
+                            onClick = {() => setSelectedUserId(userId)}
                             selected = {userId === selectedUserId}
                         />
                     ))}
@@ -156,7 +155,7 @@ export default function Chat() {
                             userId = {userId}
                             online = {false}
                             username = {offlinePeople[userId].username}
-                            setSelectedUserId = {() => setSelectedUserId(userId)}
+                            onClick = {() => setSelectedUserId(userId)}
                             selected = {userId === selectedUserId}
                         />
                     ))}
