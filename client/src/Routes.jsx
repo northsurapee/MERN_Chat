@@ -3,8 +3,11 @@ import RegisterAndLoginForm from "./RegisterAndLoginForm";
 import { UserContext } from "./UserContext"
 import Chat from "./Chat";
 
+// Routes for navigate user to "Chat" if token exist (from context), otherwise "RegisterAndLoginForm"
 export default function Routes() {
-    const {username, id} = useContext(UserContext);
+    // When loggedin or registerd, Cookies is set and context change.
+    // So Routes will navigate to Chat!
+    const {username} = useContext(UserContext);
 
     if (username) {
         return <Chat />
@@ -13,4 +16,4 @@ export default function Routes() {
     return (
         <RegisterAndLoginForm />
     );
-}''
+}

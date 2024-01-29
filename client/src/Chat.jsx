@@ -6,6 +6,7 @@ import axios from "axios";
 import Contact from "./Contact";
 
 export default function Chat() {
+    /// HOOKS ----------------------------------------------------------
     const [ws, setWs] = useState(null);
     const [onlinePeople, setOnlinePeople] = useState({});
     const [offlinePeople, setOfflinePeople] = useState({});
@@ -14,35 +15,49 @@ export default function Chat() {
     const [newMessageText, setNewMessageText] = useState('');
     const [messages, setMessages] = useState([]);
     const divUnderMessage = useRef();
+    const bucket = "mern-chat";
 
+    //// WEB SOCKETS ---------------------------------------------------
+    // useEffect for reconnecting to ws
     useEffect(() => {
-        console.log("Reconnecting")
+        setWs(null);
         connectToWs();
-      }, [selectedUserId]); // To re-create listener function with latest "selectedUserId" (Because value of the state is still be the same when function is created)
+    }, [selectedUserId]); // To re-create listener function with latest "selectedUserId" (Because value of the state is still be the same when function is created)
 
     function connectToWs() {
+        // Connect to WS
         const ws = new WebSocket('ws://localhost:4040');
         setWs(ws);
-        ws.addEventListener('message', handleMessage);
+        // Received message from WS
+        ws.addEventListener('message', handleMessage); 
+        // Disconnect from WS
         ws.addEventListener('close', () => {
           setTimeout(() => {
             console.log('Disconnected. Trying to reconnect.');
+            setWs(null);
             connectToWs();
           }, 1000);
         });
       }
 
+    // Handle receive message from WS (PEOPLE & SEND CHAT)
     function handleMessage(ev) {
+        // Parse message
         const messageData = JSON.parse(ev.data);
+        // If the message is for "notify online people"
         if ('online' in messageData) {
           showOnlinePeople(messageData.online);
+        // If the message is for "chatting"
         } else if ('text' in messageData) {
           if (messageData.sender === selectedUserId) {
+            // Set messages array state, Concat by new message
             setMessages(prev => ([...prev, {...messageData}]));
           }
         }
     }
 
+    //// PEOPLE ---------------------------------------------------
+    // Set online people
     function showOnlinePeople(peopleArray) {
         const people = {};
         peopleArray.forEach(({userId, username}) => {
@@ -51,16 +66,30 @@ export default function Chat() {
         setOnlinePeople(people);
     }
 
-    function logout() {
-        axios.post("/logout").then(() => {
-            setId(null);
-            setUsername(null);
-            setWs(null);
-        });
-    }
+    // Get offline poeple from database (on onlinePeople change)
+    useEffect(() => {
+        // get all users, filter out self and online people
+        axios.get("/people").then(res => {
+            const offlinePeopleArr = res.data
+                .filter(p => p._id !== id)
+                .filter(p => !Object.keys(onlinePeople).includes(p._id));
 
-    // Sending Message with WebSockets
-    function sendMessage(e, file = null) {
+            // arr -> obj
+            const offlinePeople = {};
+            offlinePeopleArr.forEach(p => {
+                offlinePeople[p._id] = p;
+            });
+            setOfflinePeople(offlinePeople);
+        });
+    }, [onlinePeople]);
+
+    // Delete our user from all onlinePeople
+    const onlinePeopleExclOurUser = {...onlinePeople};
+    delete onlinePeopleExclOurUser[id];
+
+    //// SEND CHAT ---------------------------------------------------
+     // Sending Message to WS
+     function sendMessage(e, file = null) {
         if (e) e.preventDefault();
         ws.send(JSON.stringify({
             recipient: selectedUserId,
@@ -68,11 +97,11 @@ export default function Chat() {
             file,
         }));
 
-        if (file) { 
+        if (file) { // If send file, get all messages of Our & selectedUser from api, then set to messages array.
             axios.get("/messages/" + selectedUserId).then(res => {
                 setMessages(res.data);
             });
-        } else { // If send text
+        } else { // If send text, set that text to messages array
             setNewMessageText("");
             setMessages((prev) => ([...prev, {
                 text: newMessageText, 
@@ -83,42 +112,20 @@ export default function Chat() {
         }
     }
 
-    // Reading and Sending File with WebSockets
+    // Sending File to WS
     function sendFile(e) {
         const reader = new FileReader();
-        reader.readAsDataURL(e.target.files[0]); // resurn base 64 data
-        reader.onload = () => {
-            sendMessage(null, {
+        reader.readAsDataURL(e.target.files[0]); // convert file from binary to base64 string (suitable to send)
+        reader.onload = () => { // Send file via sendMessage function, with fileName and base64 data
+            sendMessage(null, { 
                 name: e.target.files[0].name,
                 data: reader.result,
             });
         };
     }
 
-    // Auto scroll when messages array changed
-    useEffect(() => {
-        const div = divUnderMessage.current;
-        if (div) {
-            div.scrollIntoView({behavior: "smooth"});
-        }
-    }, [messages]);
-
-    // Get offline poeple from database
-    useEffect(() => {
-        axios.get("/people").then(res => {
-            const offlinePeopleArr = res.data
-                .filter(p => p._id !== id)
-                .filter(p => !Object.keys(onlinePeople).includes(p._id));
-
-            const offlinePeople = {};
-            offlinePeopleArr.forEach(p => {
-                offlinePeople[p._id] = p;
-            });
-            setOfflinePeople(offlinePeople);
-            console.log(offlinePeople);
-        });
-    }, [onlinePeople]);
-
+    /// RETRIVE CHAT ---------------------------------------------------
+    // Get all messages of selectedUser (on selectedUserId change)
     useEffect(() => {
         if (selectedUserId) {
             axios.get("/messages/" + selectedUserId).then(res => {
@@ -127,12 +134,27 @@ export default function Chat() {
         }
     }, [selectedUserId]);
 
-    // Delete our user from all onlinePeople
-    const onlinePeopleExclOurUser = {...onlinePeople};
-    console.log(onlinePeopleExclOurUser);
-    delete onlinePeopleExclOurUser[id];
-
+    // Uniq messages state
     const messageWithoutDupes = uniqBy(messages, "_id");
+
+    /// LOGOUT ----------------------------------------------------------
+    function logout() {
+        // post to clear cookies, then set context and ws to null.
+        axios.post("/logout").then(() => {
+            setId(null);
+            setUsername(null);
+            setWs(null);
+        });
+    }
+
+    /// UI --------------------------------------------------------------
+    // Auto scroll when messages array changed
+    useEffect(() => {
+        const div = divUnderMessage.current;
+        if (div) {
+            div.scrollIntoView({behavior: "smooth"});
+        }
+    }, [messages]);
 
     return (
         <div className="flex h-screen">
@@ -192,7 +214,7 @@ export default function Chat() {
                                                         <path fillRule="evenodd" d="M18.97 3.659a2.25 2.25 0 0 0-3.182 0l-10.94 10.94a3.75 3.75 0 1 0 5.304 5.303l7.693-7.693a.75.75 0 0 1 1.06 1.06l-7.693 7.693a5.25 5.25 0 1 1-7.424-7.424l10.939-10.94a3.75 3.75 0 1 1 5.303 5.304L9.097 18.835l-.008.008-.007.007-.002.002-.003.002A2.25 2.25 0 0 1 5.91 15.66l7.81-7.81a.75.75 0 0 1 1.061 1.06l-7.81 7.81a.75.75 0 0 0 1.054 1.068L18.97 6.84a2.25 2.25 0 0 0 0-3.182Z" clipRule="evenodd" />
                                                     </svg>
                                                     <a 
-                                                        href={axios.defaults.baseURL + "/uploads/" + message.file}
+                                                        href={`https://${bucket}.s3.amazonaws.com/${message.file}`}
                                                         className="underline"
                                                         target="_blank"
                                                         rel="noreferrer"
