@@ -4,7 +4,7 @@ import Routes from "./Routes";
 
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;
-  axios.defaults.withCredentials = true;
+  axios.defaults.withCredentials = false;
 
   return (
     <UserContextProvider>
