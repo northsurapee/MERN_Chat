@@ -49,7 +49,7 @@ async function uploadToS3(fileName, mimetype, bufferData) {
 }
 
 // Endpoint for verify cookies (use in context provider)
-app.get("/profile", (req, res) => {
+app.get("/api/profile", (req, res) => {
     const token = req.cookies?.token;
     if (token) {
         jwt.verify(token, jwtSecret, {}, (err, userData) => {
@@ -62,7 +62,7 @@ app.get("/profile", (req, res) => {
 });
 
 // Endpoint for register
-app.post("/register", async (req, res) => {
+app.post("/api/register", async (req, res) => {
     const {username, password} = req.body;
     try {
         const hashedPassword = bcrypt.hashSync(password, bcryptSalt);
@@ -86,7 +86,7 @@ app.post("/register", async (req, res) => {
 })
 
 // Endpoint for login
-app.post("/login", async (req, res) => {
+app.post("/api/login", async (req, res) => {
     const {username, password} = req.body;
     const foundUser = await User.findOne({username}); // 1) find user in database
     if (foundUser) {
@@ -120,7 +120,7 @@ async function getUserDataFromRequest(req) {
 }
 
 // End point for get all messages
-app.get("/messages/:userId", async (req, res) => {
+app.get("/api/messages/:userId", async (req, res) => {
     const {userId} = req.params; // Receive selectedUser from req
     const userData = await getUserDataFromRequest(req); // Vefity token to get our userData
     const ourUserId = userData.userId;
@@ -134,13 +134,13 @@ app.get("/messages/:userId", async (req, res) => {
 });
 
 // End point for get all users
-app.get("/people", async (req, res) => {
+app.get("/api/people", async (req, res) => {
     const users = await User.find({}, {"_id":1, username: 1});
     res.json(users);
 });
 
 // End point for logout
-app.post("/logout", async (req, res) => {
+app.post("/api/logout", async (req, res) => {
     res.cookie('token', "").status(201).json("ok"); // Clear cookies
 });
 
